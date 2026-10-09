@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DropWise – Smart Water Management System</title>
+  <meta name="description" content="DropWise is an intelligent water management dashboard for residential and commercial buildings featuring live tank monitoring, leak detection, analytics, AI advice, and rainwater harvesting calculation.">
+
+  <!-- Fonts & Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+  <!-- Application Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Collapsible / Responsive Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon">
+            <i class="fa-solid fa-droplet"></i>
+            <span class="brand-ripple"></span>
+          </div>
+          <div class="brand-text">
+            <h2>DropWise</h2>
+            <span class="brand-sub">Smart Water OS</span>
+          </div>
+        </div>
+        <button class="mobile-close-btn" id="mobileCloseBtn" aria-label="Close Navigation">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="sidebar-status-pill">
+        <span class="status-dot pulsing"></span>
+        <span class="status-text" id="sidebarSimStatus">Simulating Sensors</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <ul>
+          <li class="nav-item active" data-view="dashboard">
+            <a href="#dashboard" id="nav-dashboard">
+              <i class="fa-solid fa-gauge-high"></i>
+              <span>Dashboard</span>
+            </a>
+          </li>
+          <li class="nav-item" data-view="analytics">
+            <a href="#analytics" id="nav-analytics">
+              <i class="fa-solid fa-chart-line"></i>
+              <span>Water Analytics</span>
+            </a>
+          </li>
+          <li class="nav-item" data-view="alerts">
+            <a href="#alerts" id="nav-alerts">
+              <i class="fa-solid fa-bell"></i>
+              <span>Smart Alerts</span>
+              <span class="badge" id="alertCountBadge">0</span>
+            </a>
+          </li>
+          <li class="nav-item" data-view="advisor">
+            <a href="#advisor" id="nav-advisor">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+              <span>AI Water Advisor</span>
+              <span class="badge ai-badge">Gemini</span>
+            </a>
+          </li>
+          <li class="nav-item" data-view="rainwater">
+            <a href="#rainwater" id="nav-rainwater">
+              <i class="fa-solid fa-cloud-showers-water"></i>
+              <span>Rainwater Calc</span>
+            </a>
+          </li>
+          <li class="nav-item" data-view="about">
+            <a href="#about" id="nav-about">
+              <i class="fa-solid fa-circle-info"></i>
+              <span>About DropWise</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sim-controls-compact">
+          <span class="footer-label">Demo Simulation</span>
+          <div class="compact-btn-row">
+            <button class="btn-micro" id="quickLeakBtn" title="Simulate Sudden Leak">
+              <i class="fa-solid fa-triangle-exclamation"></i> Leak
+            </button>
+            <button class="btn-micro" id="quickPumpBtn" title="Toggle Water Pump">
+              <i class="fa-solid fa-power-off"></i> Pump
+            </button>
+            <button class="btn-micro btn-micro-accent" id="quickResetBtn" title="Reset All Simulation Data">
+              <i class="fa-solid fa-rotate-left"></i> Reset
+            </button>
+          </div>
+        </div>
+        <button class="api-key-btn" id="openSettingsModalBtn">
+          <i class="fa-solid fa-key"></i>
+          <span>AI Key &amp; Settings</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Navigation / Header -->
+      <header class="top-header">
+        <div class="header-left">
+          <button class="mobile-menu-btn" id="mobileMenuBtn" aria-label="Open Navigation">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="header-title-wrap">
+            <h1 id="pageTitle">Monitoring Center</h1>
+            <p class="tagline">See the Flow. Spot the Problem. Save the Water.</p>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <!-- Simulation Status Badge -->
+          <div class="mode-badge" id="simBadge">
+            <span class="badge-dot"></span>
+            <span class="badge-text">Simulation Mode (2s ticks)</span>
+          </div>
+
+          <!-- Date & Time readout -->
+          <div class="time-card">
+            <i class="fa-regular fa-clock"></i>
+            <span id="liveClock">--:--:--</span>
+            <span class="date-sep">|</span>
+            <span id="liveDate">Oct 9, 2026</span>
+          </div>
+
+          <!-- Quick pause button -->
+          <button class="header-icon-btn" id="headerPauseToggle" title="Pause or Resume Sensor Simulator">
+            <i class="fa-solid fa-pause" id="headerPauseIcon"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Toast Notification Container -->
+      <div class="toast-container" id="toastContainer"></div>
+
+      <!-- ============================================== -->
+      <!-- VIEW 1: DASHBOARD -->
+      <!-- ============================================== -->
+      <section class="view-section active" id="view-dashboard">
+        <!-- Hackathon Demo Scenarios Strip -->
+        <div class="demo-banner">
+          <div class="demo-banner-info">
+            <i class="fa-solid fa-flask"></i>
+            <div>
+              <strong>Deterministic Demo Scenarios</strong>
+              <span>Test live thresholds reliably for evaluation without waiting for random states</span>
+            </div>
+          </div>
+          <div class="demo-scenario-actions">
+            <button class="btn btn-sm btn-ghost" id="demoNormalBtn">
+              <i class="fa-solid fa-check"></i> Normal Flow
+            </button>
+            <button class="btn btn-sm btn-warning" id="demoLowWaterBtn">
+              <i class="fa-solid fa-arrow-down-wide-short"></i> Force Low Water (&le;20%)
+            </button>
+            <button class="btn btn-sm btn-accent" id="demoOverflowBtn">
+              <i class="fa-solid fa-arrow-up-wide-short"></i> Force Overflow (&ge;90%)
+            </button>
+            <button class="btn btn-sm btn-danger" id="demoLeakBtn">
+              <i class="fa-solid fa-burst"></i> Force Leak (&ge;15 L/m)
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Metric Cards Grid -->
+        <div class="metrics-grid">
+          <!-- Card 1: Tank Level -->
+          <div class="metric-card" id="cardTankLevel">
+            <div class="metric-header">
+              <span class="metric-title">Tank Level</span>
+              <div class="metric-icon water-bg">
+                <i class="fa-solid fa-water"></i>
+              </div>
+            </div>
+            <div class="metric-body">
+              <div class="metric-value-wrap">
+                <span class="metric-value" id="kpiTankLevel">72</span>
+                <span class="metric-unit">%</span>
+              </div>
+              <div class="metric-status" id="tankStatusBadge">
+                <span class="status-indicator normal"></span>
+                <span class="status-label" id="tankStatusLabel">Normal Capacity</span>
+              </div>
+            </div>
+            <div class="metric-progress-bar">
+              <div class="progress-fill" id="kpiTankProgress" style="width: 72%;"></div>
+            </div>
+          </div>
+
+          <!-- Card 2: Water Available -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Water Available</span>
+              <div class="metric-icon teal-bg">
+                <i class="fa-solid fa-faucet-drip"></i>
+              </div>
+            </div>
+            <div class="metric-body">
+              <div class="metric-value-wrap">
+                <span class="metric-value" id="kpiWaterAvailable">1,440</span>
+                <span class="metric-unit">L</span>
+              </div>
+              <div class="metric-subtext">
+                Capacity: <strong id="kpiTankCapacity">2,000</strong> L
+              </div>
+            </div>
+            <div class="metric-footer-stats">
+              <span>Estimated buffer: <strong id="kpiBufferHours">~18.2 hrs</strong></span>
+            </div>
+          </div>
+
+          <!-- Card 3: Today's Consumption -->
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Today's Usage</span>
+              <div class="metric-icon purple-bg">
+                <i class="fa-solid fa-chart-pie"></i>
+              </div>
+            </div>
+            <div class="metric-body">
+              <div class="metric-value-wrap">
+                <span class="metric-value" id="kpiUsageToday">185.4</span>
+                <span class="metric-unit">L</span>
+              </div>
+              <div class="metric-subtext">
+                Baseline Budget: <strong>450.0 L</strong>
+              </div>
+            </div>
+            <div class="metric-progress-bar">
+              <div class="progress-fill purple" id="kpiUsageProgress" style="width: 41.2%;"></div>
+            </div>
+          </div>
+
+          <!-- Card 4: Current Flow Rate -->
+          <div class="metric-card" id="cardFlowRate">
+            <div class="metric-header">
+              <span class="metric-title">Flow Rate</span>
+              <div class="metric-icon navy-bg" id="flowIconBg">
+                <i class="fa-solid fa-gauge" id="flowIcon"></i>
+              </div>
+            </div>
+            <div class="metric-body">
+              <div class="metric-value-wrap">
+                <span class="metric-value" id="kpiFlowRate">3.5</span>
+                <span class="metric-unit">L/min</span>
+              </div>
+              <div class="metric-status" id="flowStatusBadge">
+                <span class="status-indicator normal" id="flowDot"></span>
+                <span class="status-label" id="flowStatusLabel">Moderate Household Use</span>
+              </div>
+            </div>
+            <div class="metric-footer-stats">
+              <span>Threshold: <strong id="kpiLeakThresholdDisplay">15.0 L/min</strong></span>
+            </div>
+          </div>
+
+          <!-- Card 5: Pump Status -->
+          <div class="metric-card" id="cardPump">
+            <div class="metric-header">
+              <span class="metric-title">Water Pump</span>
+              <div class="metric-icon amber-bg">
+                <i class="fa-solid fa-gears"></i>
+              </div>
+            </div>
+            <div class="metric-body">
+              <div class="metric-value-wrap">
+                <span class="metric-value pump-state-text" id="kpiPumpState">OFF</span>
+              </div>
+              <div class="pump-toggle-wrapper">
+                <button class="pump-switch-btn off" id="pumpToggleBtn" title="Toggle Overhead Pump">
+                  <span class="pump-knob"></span>
+                  <span class="pump-switch-label" id="pumpSwitchLabel">Click to Start</span>
+                </button>
+              </div>
+            </div>
+            <div class="metric-footer-stats">
+              <span id="pumpInflowText">Inflow: 0.0 L/min</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Center Grid: Animated Tank & Live Chart -->
+        <div class="dashboard-main-grid">
+          <!-- Animated Water Tank Column -->
+          <div class="glass-card tank-card">
+            <div class="card-header">
+              <div>
+                <h3>Overhead Tank Status</h3>
+                <p class="card-subtitle">Real-time hydrostatic simulation</p>
+              </div>
+              <div class="tank-badge" id="tankLevelBadge">72% Full</div>
+            </div>
+
+            <div class="tank-visual-wrapper">
+              <!-- Tank Structure -->
+              <div class="tank-cylinder" id="tankCylinder">
+                <!-- Tank Lid / Top Cap -->
+                <div class="tank-lid">
+                  <div class="tank-inlet-pipe" id="inletPipe">
+                    <span class="water-stream" id="waterStream"></span>
+                  </div>
+                </div>
+
+                <!-- Measurement Ticks -->
+                <div class="tank-rulers">
+                  <div class="tank-mark mark-100"><span>100% (2000L)</span></div>
+                  <div class="tank-mark mark-90 warning-mark"><span>90% Overflow</span></div>
+                  <div class="tank-mark mark-75"><span>75% (1500L)</span></div>
+                  <div class="tank-mark mark-50"><span>50% (1000L)</span></div>
+                  <div class="tank-mark mark-25"><span>25% (500L)</span></div>
+                  <div class="tank-mark mark-20 danger-mark"><span>20% Low Water</span></div>
+                  <div class="tank-mark mark-0"><span>0% Empty</span></div>
+                </div>
+
+                <!-- Liquid Body -->
+                <div class="water-fill" id="waterFill" style="height: 72%;">
+                  <!-- Animated Wave Layer 1 -->
+                  <div class="wave wave1"></div>
+                  <!-- Animated Wave Layer 2 -->
+                  <div class="wave wave2"></div>
+                  <!-- Animated Bubbles during pumping -->
+                  <div class="bubbles-container" id="bubblesContainer">
+                    <span class="bubble"></span>
+                    <span class="bubble"></span>
+                    <span class="bubble"></span>
+                    <span class="bubble"></span>
+                    <span class="bubble"></span>
+                  </div>
+                </div>
+
+                <!-- Glass Sheen Overlay -->
+                <div class="glass-reflection"></div>
+
+                <!-- Center Readout Overlay -->
+                <div class="tank-center-readout">
+                  <span class="readout-pct" id="tankCenterPct">72%</span>
+                  <span class="readout-litres" id="tankCenterLitres">1,440 Litres</span>
+                  <span class="readout-sub" id="tankCenterSub">Available Capacity</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tank Footer Controls -->
+            <div class="tank-card-footer">
+              <div class="tank-status-pill-row">
+                <span class="badge" id="tankStatePill">Status: Normal</span>
+                <span class="badge badge-outline" id="tankNetRatePill">Net: -3.5 L/min</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Flow Analytics Column -->
+          <div class="glass-card chart-card">
+            <div class="card-header">
+              <div>
+                <h3>Live Water Flow Rate</h3>
+                <p class="card-subtitle">Real-time sensor telemetry (Rolling 30 readings &bull; 2s intervals)</p>
+              </div>
+              <div class="chart-controls">
+                <span class="live-indicator">
+                  <span class="pulse-ring"></span>
+                  LIVE
+                </span>
+              </div>
+            </div>
+
+            <div class="chart-wrapper">
+              <canvas id="liveFlowChart"></canvas>
+            </div>
+
+            <!-- Chart Footnote & Baseline info -->
+            <div class="chart-summary-bar">
+              <div class="stat-pill">
+                <span class="label">Current:</span>
+                <strong id="chartCurrentFlow">3.5 L/min</strong>
+              </div>
+              <div class="stat-pill">
+                <span class="label">30-pt Peak:</span>
+                <strong id="chartPeakFlow">5.2 L/min</strong>
+              </div>
+              <div class="stat-pill">
+                <span class="label">30-pt Avg:</span>
+                <strong id="chartAvgFlow">3.8 L/min</strong>
+              </div>
+              <div class="stat-pill">
+                <span class="label">Abnormal Flow Alert:</span>
+                <strong class="text-warning">&gt; 15.0 L/min</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Row: Alerts Feed & Demo Controls -->
+        <div class="dashboard-bottom-grid">
+          <!-- Active Alerts Card -->
+          <div class="glass-card alerts-summary-card">
+            <div class="card-header">
+              <div>
+                <h3>Active Smart Alerts</h3>
+                <p class="card-subtitle">Automatic threshold alarms with 10s cooldown guard</p>
+              </div>
+              <a href="#alerts" class="view-all-link" id="viewAllAlertsLink">View History &rarr;</a>
+            </div>
+
+            <div class="active-alerts-list" id="dashboardAlertsList">
+              <!-- Dynamically populated or empty state -->
+              <div class="empty-alerts" id="dashboardEmptyAlerts">
+                <i class="fa-solid fa-circle-check"></i>
+                <p>All systems nominal. No active warnings or abnormal flow patterns detected.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Demo Simulator Master Controls -->
+          <div class="glass-card simulator-master-card">
+            <div class="card-header">
+              <div>
+                <h3>Interactive Simulator Controls</h3>
+                <p class="card-subtitle">Test and demonstrate all real-time failure scenarios</p>
+              </div>
+              <span class="badge badge-info">Evaluation Kit</span>
+            </div>
+
+            <div class="demo-buttons-grid">
+              <button class="btn btn-danger-soft" id="btnSimulateLeak">
+                <i class="fa-solid fa-droplet-slash"></i>
+                <div>
+                  <strong>Simulate Leak</strong>
+                  <span>Spike flow &gt; 18 L/min for 3+ ticks</span>
+                </div>
+              </button>
+
+              <button class="btn btn-secondary" id="btnStopLeak">
+                <i class="fa-solid fa-shield-halved"></i>
+                <div>
+                  <strong>Stop Leak Simulation</strong>
+                  <span>Restore normal domestic flow</span>
+                </div>
+              </button>
+
+              <button class="btn btn-secondary" id="btnToggleMonitoring">
+                <i class="fa-solid fa-pause" id="btnMonitoringIcon"></i>
+                <div>
+                  <strong id="btnMonitoringText">Pause Monitoring</strong>
+                  <span>Freeze sensor telemetry ticks</span>
+                </div>
+              </button>
+
+              <button class="btn btn-outline-danger" id="btnResetSimulation">
+                <i class="fa-solid fa-arrows-rotate"></i>
+                <div>
+                  <strong>Reset Simulation</strong>
+                  <span>Restore 72% tank &amp; 0 alerts</span>
+                </div>
+              </button>
+            </div>
+
+            <div class="sensor-info-box">
+              <i class="fa-solid fa-circle-info"></i>
+              <p>
+                <strong>Simulated Hardware Notice:</strong> Sensor readings are mathematically computed in JavaScript every 2 seconds with true elapsed-time integration. In a physical setup, an ESP32 microcontroller with an ultrasonic sensor (JSN-SR04T) and flow meter (YF-S201) would feed these values over MQTT/HTTP.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 2: WATER ANALYTICS -->
+      <!-- ============================================== -->
+      <section class="view-section" id="view-analytics">
+        <div class="analytics-header-banner">
+          <div>
+            <h2>Water Usage &amp; Consumption Analytics</h2>
+            <p>Comprehensive telemetry records, baseline benchmarks, and efficiency metrics</p>
+          </div>
+          <div class="analytics-timeframe-badge">
+            <i class="fa-regular fa-calendar-days"></i> Daily Assessment: Oct 9, 2026
+          </div>
+        </div>
+
+        <div class="analytics-kpi-row">
+          <div class="analytics-stat-card">
+            <span class="stat-title">Daily Consumption</span>
+            <div class="stat-number">
+              <span id="analyticsUsageValue">185.4</span> <small>Litres</small>
+            </div>
+            <div class="stat-progress-bar">
+              <div class="fill" id="analyticsUsageBar" style="width: 41%;"></div>
+            </div>
+            <span class="stat-comparison" id="analyticsUsageComp">41.2% of 450L household baseline</span>
+          </div>
+
+          <div class="analytics-stat-card">
+            <span class="stat-title">Conservation Rating</span>
+            <div class="stat-number text-success" id="analyticsEfficiencyRating">
+              A <small>Optimal</small>
+            </div>
+            <p class="stat-desc">Flow rate is within normal eco-range. Minimal parasitic losses detected.</p>
+          </div>
+
+          <div class="analytics-stat-card">
+            <span class="stat-title">Estimated Cost</span>
+            <div class="stat-number" id="analyticsCostValue">
+              $0.46 <small>USD</small>
+            </div>
+            <p class="stat-desc">Based on $0.0025 / Litre municipal tariff &amp; pumping power.</p>
+          </div>
+
+          <div class="analytics-stat-card">
+            <span class="stat-title">Leak Risk Score</span>
+            <div class="stat-number text-success" id="analyticsLeakScore">
+              Low <small>(0/3)</small>
+            </div>
+            <p class="stat-desc" id="analyticsLeakDetail">No sustained abnormal continuous flow.</p>
+          </div>
+        </div>
+
+        <!-- Analytics Charts Grid -->
+        <div class="analytics-charts-grid">
+          <!-- Daily Consumption Trend Chart -->
+          <div class="glass-card">
+            <div class="card-header">
+              <div>
+                <h3>Hourly Consumption Breakdown (Today)</h3>
+                <p class="card-subtitle">Simulated diurnal household usage curve vs 450L baseline</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="consumptionChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Tank Level Historical Trend -->
+          <div class="glass-card">
+            <div class="card-header">
+              <div>
+                <h3>Tank Level History</h3>
+                <p class="card-subtitle">Depletion and refilling trend over monitoring session</p>
+              </div>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="tankHistoryChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 3: SMART ALERTS -->
+      <!-- ============================================== -->
+      <section class="view-section" id="view-alerts">
+        <div class="alerts-view-header">
+          <div>
+            <h2>Smart Alerts &amp; Incident Management</h2>
+            <p>Threshold monitoring, leakage alarms, and alert lifecycle logging</p>
+          </div>
+          <div class="alerts-header-actions">
+            <button class="btn btn-secondary" id="btnClearResolvedAlerts">
+              <i class="fa-solid fa-broom"></i> Clear Dismissed
+            </button>
+          </div>
+        </div>
+
+        <div class="alerts-layout-grid">
+          <!-- Main Alert Feed -->
+          <div class="glass-card alert-feed-card">
+            <div class="alert-feed-tabs">
+              <button class="tab-btn active" data-filter="all" id="filterAllAlerts">All Alerts (<span id="allAlertCount">0</span>)</button>
+              <button class="tab-btn" data-filter="active" id="filterActiveAlerts">Active Only (<span id="activeAlertCount">0</span>)</button>
+              <button class="tab-btn" data-filter="dismissed" id="filterDismissedAlerts">Dismissed (<span id="dismissedAlertCount">0</span>)</button>
+            </div>
+
+            <div class="alert-log-container" id="alertLogContainer">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Alert Threshold Configuration Sidebar -->
+          <div class="glass-card alert-config-card">
+            <div class="card-header">
+              <div>
+                <h3>Detection Thresholds</h3>
+                <p class="card-subtitle">Adjust simulated alarm triggers</p>
+              </div>
+              <i class="fa-solid fa-sliders text-teal"></i>
+            </div>
+
+            <div class="config-form">
+              <div class="config-group">
+                <label for="cfgLowWater">Low-Water Alarm (&le; %):</label>
+                <div class="range-row">
+                  <input type="range" id="cfgLowWater" min="5" max="35" value="20" step="1">
+                  <span class="range-val" id="cfgLowWaterVal">20%</span>
+                </div>
+                <small class="help-text">Triggers urgent notification to refill tank.</small>
+              </div>
+
+              <div class="config-group">
+                <label for="cfgOverflow">Overflow-Risk Alarm (&ge; %):</label>
+                <div class="range-row">
+                  <input type="range" id="cfgOverflow" min="75" max="98" value="90" step="1">
+                  <span class="range-val" id="cfgOverflowVal">90%</span>
+                </div>
+                <small class="help-text">Triggers pump shutoff warning to prevent spillage.</small>
+              </div>
+
+              <div class="config-group">
+                <label for="cfgLeakFlow">Leak Flow Baseline (L/min):</label>
+                <div class="range-row">
+                  <input type="range" id="cfgLeakFlow" min="8" max="25" value="15" step="0.5">
+                  <span class="range-val" id="cfgLeakFlowVal">15.0 L/m</span>
+                </div>
+                <small class="help-text">Flow exceeding this indicates burst pipe or open tap.</small>
+              </div>
+
+              <div class="config-group">
+                <label for="cfgConsecutive">Consecutive Readings Required:</label>
+                <div class="range-row">
+                  <input type="range" id="cfgConsecutive" min="2" max="6" value="3" step="1">
+                  <span class="range-val" id="cfgConsecutiveVal">3 ticks</span>
+                </div>
+                <small class="help-text">Prevents false alarms from transient faucet openings.</small>
+              </div>
+
+              <div class="cooldown-info-box">
+                <i class="fa-solid fa-stopwatch"></i>
+                <div>
+                  <strong>10-Second Alert Cooldown</strong>
+                  <span>Each alert type is throttled to prevent spamming notifications during continuous trigger events.</span>
+                </div>
+              </div>
+
+              <button class="btn btn-secondary btn-full" id="btnResetThresholds">
+                <i class="fa-solid fa-rotate-left"></i> Reset Defaults
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 4: AI WATER ADVISOR -->
+      <!-- ============================================== -->
+      <section class="view-section" id="view-advisor">
+        <div class="ai-hero-card">
+          <div class="ai-hero-content">
+            <div class="ai-badge-row">
+              <span class="badge ai-badge-glow">
+                <i class="fa-solid fa-brain"></i> Google Gemini Intelligence
+              </span>
+              <span class="badge" id="aiEngineStatusBadge">
+                <span class="status-dot"></span> Ready (Offline Fallback Active)
+              </span>
+            </div>
+            <h2>AI Smart Water Advisor</h2>
+            <p>
+              DropWise uses Google Gemini to analyze real-time telemetry (tank capacity, flow dynamics, consumption spikes, and leak patterns) and generate bespoke, practical water conservation recommendations.
+            </p>
+            <div class="ai-actions-row">
+              <button class="btn btn-primary" id="btnGenerateAiTips">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                <span id="btnGenerateText">Generate AI Recommendations</span>
+              </button>
+              <button class="btn btn-secondary" id="btnOpenAiSettingsModal">
+                <i class="fa-solid fa-gear"></i> Configure Gemini API Key
+              </button>
+            </div>
+          </div>
+          <div class="ai-hero-illustration">
+            <i class="fa-solid fa-microchip-ai"></i>
+          </div>
+        </div>
+
+        <!-- Telemetry Snapshot Card Sent to AI -->
+        <div class="glass-card telemetry-snapshot-card">
+          <div class="card-header">
+            <div>
+              <h3>Real-Time Telemetry Payload</h3>
+              <p class="card-subtitle">Current sensor readings fed into the recommendation model</p>
+            </div>
+            <span class="badge badge-outline">Live Input Vector</span>
+          </div>
+
+          <div class="telemetry-pill-grid">
+            <div class="telemetry-pill">
+              <span class="pill-label">Tank Level</span>
+              <strong id="aiPayloadTank">72%</strong>
+            </div>
+            <div class="telemetry-pill">
+              <span class="pill-label">Available Water</span>
+              <strong id="aiPayloadWater">1,440 L</strong>
+            </div>
+            <div class="telemetry-pill">
+              <span class="pill-label">Daily Consumption</span>
+              <strong id="aiPayloadUsage">185.4 L</strong>
+            </div>
+            <div class="telemetry-pill">
+              <span class="pill-label">Current Flow</span>
+              <strong id="aiPayloadFlow">3.5 L/min</strong>
+            </div>
+            <div class="telemetry-pill">
+              <span class="pill-label">Pump Status</span>
+              <strong id="aiPayloadPump">OFF</strong>
+            </div>
+            <div class="telemetry-pill">
+              <span class="pill-label">Leak State</span>
+              <strong id="aiPayloadLeak" class="text-success">Nominal</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Output Section -->
+        <div class="ai-output-section">
+          <div class="ai-output-header">
+            <div>
+              <h3>Actionable Water-Saving Recommendations</h3>
+              <p class="card-subtitle" id="aiGeneratedSubtitle">Generated based on current building usage patterns</p>
+            </div>
+            <div class="ai-source-badge" id="aiSourceBadge">
+              <i class="fa-solid fa-shield"></i>
+              <span id="aiSourceText">Offline Expert Rules</span>
+            </div>
+          </div>
+
+          <!-- Loading Skeleton / Spinner (Hidden by default) -->
+          <div class="ai-loading-state hidden" id="aiLoadingState">
+            <div class="spinner"></div>
+            <h4>Synthesizing Telemetry with Gemini...</h4>
+            <p>Evaluating consumption curve, tank volume buffer, and continuous flow risks</p>
+          </div>
+
+          <!-- Recommendations Grid (Exactly 3 cards) -->
+          <div class="recommendations-grid" id="recommendationsGrid">
+            <!-- Card 1 -->
+            <div class="recommendation-card" id="recCard1">
+              <div class="rec-number">01</div>
+              <div class="rec-content">
+                <div class="rec-category" id="recCat1">Consumption Management</div>
+                <h4 id="recTitle1">Optimize Peak Hour Laundry &amp; Dishwashing</h4>
+                <p id="recDesc1">Today's consumption is tracking well against baseline. Running full wash loads instead of partial cycles can preserve an additional 25-40 litres for evening availability.</p>
+              </div>
+              <div class="rec-badge" id="recBadge1">Efficiency</div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="recommendation-card" id="recCard2">
+              <div class="rec-number">02</div>
+              <div class="rec-content">
+                <div class="rec-category" id="recCat2">Storage &amp; Pressure</div>
+                <h4 id="recTitle2">Maintain 70%+ Overhead Level for Night Storage</h4>
+                <p id="recDesc2">Current storage of 1,440L covers normal evening routines. Schedule the automated pump refill before municipal supply pressure drops during evening peak demand.</p>
+              </div>
+              <div class="rec-badge" id="recBadge2">Buffer</div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="recommendation-card" id="recCard3">
+              <div class="rec-number">03</div>
+              <div class="rec-content">
+                <div class="rec-category" id="recCat3">Leak Prevention</div>
+                <h4 id="recTitle3">Routine Inspection of Toilet Flappers &amp; Aerators</h4>
+                <p id="recDesc3">Flow is within nominal household parameters. Performing a 2-minute visual check on flush valves prevents silent leaks that frequently waste 200+ litres undetected.</p>
+              </div>
+              <div class="rec-badge" id="recBadge3">Preventative</div>
+            </div>
+          </div>
+
+          <!-- Fallback and Security Notice -->
+          <div class="ai-footer-notice">
+            <i class="fa-solid fa-lock"></i>
+            <div>
+              <strong>Security &amp; Local Demo Architecture:</strong>
+              API keys are stored exclusively in your browser's private <code>localStorage</code> and are never shared or hardcoded in source code. When no API key is entered or when offline, DropWise automatically employs its built-in rule-based expert recommendation engine so evaluations are never blocked.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 5: RAINWATER HARVESTING CALCULATOR -->
+      <!-- ============================================== -->
+      <section class="view-section" id="view-rainwater">
+        <div class="rainwater-header">
+          <div>
+            <h2>Rainwater Harvesting Potential Calculator</h2>
+            <p>Estimate harvestable water volume based on catchment area, precipitation, and system efficiency</p>
+          </div>
+          <div class="formula-pill">
+            Formula: <code>Harvest (L) = Area (m&sup2;) &times; Rainfall (mm) &times; Efficiency</code>
+          </div>
+        </div>
+
+        <div class="rainwater-grid">
+          <!-- Input Form Card -->
+          <div class="glass-card calculator-card">
+            <div class="card-header">
+              <div>
+                <h3>Catchment Parameters</h3>
+                <p class="card-subtitle">Specify roof characteristics and expected rainfall</p>
+              </div>
+            </div>
+
+            <!-- Preset Buttons -->
+            <div class="presets-section">
+              <span class="preset-label">Quick Presets:</span>
+              <div class="preset-btn-row">
+                <button class="preset-btn" id="presetSmallHome">
+                  <i class="fa-solid fa-house"></i> Small House (60 m&sup2;)
+                </button>
+                <button class="preset-btn" id="presetMediumHome">
+                  <i class="fa-solid fa-house-chimney"></i> Standard Villa (120 m&sup2;)
+                </button>
+                <button class="preset-btn" id="presetHostel">
+                  <i class="fa-solid fa-building"></i> Hostel / Flat (300 m&sup2;)
+                </button>
+              </div>
+              <div class="preset-btn-row" style="margin-top: 6px;">
+                <button class="preset-btn" id="presetLightRain">
+                  <i class="fa-solid fa-cloud-rain"></i> Light Rain (15 mm)
+                </button>
+                <button class="preset-btn" id="presetMonsoon">
+                  <i class="fa-solid fa-cloud-showers-heavy"></i> Heavy Monsoon (50 mm)
+                </button>
+              </div>
+            </div>
+
+            <form id="rainwaterForm" class="calculator-form">
+              <!-- Roof Area -->
+              <div class="form-group">
+                <label for="inputRoofArea">
+                  Roof Catchment Area (m&sup2;):
+                  <span class="required">*</span>
+                </label>
+                <div class="input-with-icon">
+                  <i class="fa-solid fa-vector-square"></i>
+                  <input type="number" id="inputRoofArea" min="1" max="10000" step="any" value="100" placeholder="e.g. 100" required>
+                  <span class="input-unit">m&sup2;</span>
+                </div>
+                <small class="help-text">Horizontal footprint of the roof surface draining to gutters.</small>
+              </div>
+
+              <!-- Rainfall Depth -->
+              <div class="form-group">
+                <label for="inputRainfall">
+                  Rainfall Event Depth (mm):
+                  <span class="required">*</span>
+                </label>
+                <div class="input-with-icon">
+                  <i class="fa-solid fa-cloud-rain"></i>
+                  <input type="number" id="inputRainfall" min="1" max="1000" step="any" value="50" placeholder="e.g. 50" required>
+                  <span class="input-unit">mm</span>
+                </div>
+                <small class="help-text">Average seasonal or single-storm precipitation depth.</small>
+              </div>
+
+              <!-- Collection Efficiency -->
+              <div class="form-group">
+                <label for="inputEfficiency">
+                  Collection Efficiency Coefficient (&eta;):
+                  <span class="badge" id="efficiencyDisplay">0.80 (80%)</span>
+                </label>
+                <div class="range-row">
+                  <input type="range" id="inputEfficiency" min="0.5" max="0.95" step="0.05" value="0.80">
+                </div>
+                <small class="help-text">Accounts for gutter overflow, roof evaporation, and first-flush diverter diversion (typical: 0.75 &ndash; 0.85).</small>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-full" id="btnCalculateRainwater">
+                  <i class="fa-solid fa-calculator"></i> Calculate Harvestable Water
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Results Card -->
+          <div class="glass-card results-card">
+            <div class="card-header">
+              <div>
+                <h3>Harvest Potential Output</h3>
+                <p class="card-subtitle">Estimated recovery potential</p>
+              </div>
+              <span class="badge badge-success">Calculation Result</span>
+            </div>
+
+            <div class="result-highlight-box">
+              <span class="result-label">Estimated Harvestable Water:</span>
+              <div class="result-big-value">
+                <span id="resultLitres">4,000</span>
+                <span class="unit">Litres</span>
+              </div>
+              <span class="result-sub-value" id="resultCubicMeters">&asymp; 4.0 m&sup3; (Cubic Metres)</span>
+            </div>
+
+            <!-- Equivalence Metrics -->
+            <div class="equivalence-grid">
+              <div class="equiv-item">
+                <i class="fa-solid fa-water"></i>
+                <div class="equiv-text">
+                  <strong id="resultTanksFilled">2.0&times;</strong>
+                  <span>DropWise Tanks Filled (2,000L capacity)</span>
+                </div>
+              </div>
+
+              <div class="equiv-item">
+                <i class="fa-solid fa-calendar-days"></i>
+                <div class="equiv-text">
+                  <strong id="resultDaysSupply">~8.9 Days</strong>
+                  <span>Average Household Supply (at 450L/day)</span>
+                </div>
+              </div>
+
+              <div class="equiv-item">
+                <i class="fa-solid fa-hand-holding-dollar"></i>
+                <div class="equiv-text">
+                  <strong id="resultMoneySaved">$10.00</strong>
+                  <span>Estimated Municipal Water Cost Savings</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="rainwater-disclaimer">
+              <i class="fa-solid fa-circle-exclamation"></i>
+              <p>
+                <strong>Engineering Disclaimer:</strong> This calculation provides a theoretical volumetric estimate. Actual harvestable water is subject to roof slope, surface texture, atmospheric temperature, gutter sizing, and first-flush diversion losses.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- VIEW 6: ABOUT DROPWISE -->
+      <!-- ============================================== -->
+      <section class="view-section" id="view-about">
+        <div class="about-hero">
+          <div class="about-badge">
+            <i class="fa-solid fa-trophy"></i> Hackathon Ready Prototype
+          </div>
+          <h2>About DropWise Smart Water OS</h2>
+          <p class="about-lead">
+            An end-to-end intelligent water monitoring and leak prevention architecture engineered for modern residential buildings, hostels, and housing communities.
+          </p>
+        </div>
+
+        <div class="about-grid">
+          <!-- Architecture Card -->
+          <div class="glass-card">
+            <div class="card-header">
+              <div>
+                <h3>System Architecture &amp; Data Pipeline</h3>
+                <p class="card-subtitle">How DropWise processes telemetry</p>
+              </div>
+              <i class="fa-solid fa-diagram-project text-teal"></i>
+            </div>
+            <div class="card-body-text">
+              <ul class="styled-list">
+                <li>
+                  <strong>Real-Time Sensor Simulator:</strong> Computes true differential volume balance ($\Delta V = (\text{Inflow} - \text{Outflow}) \times \Delta t$) every 2 seconds without cumulative time drift.
+                </li>
+                <li>
+                  <strong>Three-Strike Leak Detection:</strong> Monitors continuous high-velocity flow ($\ge 15\text{ L/min}$). Only triggers after 3 consecutive abnormal cycles to prevent false positives from brief tap turns.
+                </li>
+                <li>
+                  <strong>Cooldown-Protected Smart Alarms:</strong> Dedicated 10-second cooldown guards per alarm channel prevent notification fatigue while keeping underlying threshold sensors active.
+                </li>
+                <li>
+                  <strong>Dual-Tier AI Intelligence:</strong> Combines Google Gemini cloud LLM inference with a zero-latency offline heuristic engine that functions even with no internet connection.
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Hardware Migration Roadmap -->
+          <div class="glass-card">
+            <div class="card-header">
+              <div>
+                <h3>Future Physical Hardware Roadmap</h3>
+                <p class="card-subtitle">Transitioning from prototype to physical deployment</p>
+              </div>
+              <i class="fa-solid fa-microchip text-accent"></i>
+            </div>
+            <div class="card-body-text">
+              <p>To deploy DropWise in a real apartment or hostel building:</p>
+              <ul class="styled-list">
+                <li>
+                  <strong>Controller:</strong> ESP32 Wi-Fi / Bluetooth IoT microcontroller with watchdog reset.
+                </li>
+                <li>
+                  <strong>Tank Level:</strong> Waterproof ultrasonic transducer (JSN-SR04T) mounted on tank cap or submersible hydrostatic pressure sensor.
+                </li>
+                <li>
+                  <strong>Flow Sensor:</strong> YF-S201 Hall-effect turbine flow sensor placed on the primary outlet manifold.
+                </li>
+                <li>
+                  <strong>Pump Actuation:</strong> Optocoupler-isolated 30A solid-state relay module with manual mechanical override and dry-run safety sensor.
+                </li>
+                <li>
+                  <strong>Telemetry Protocol:</strong> Lightweight MQTT broker with TLS encryption transmitting JSON payloads to the DropWise backend.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Safety Notice -->
+        <div class="glass-card hardware-warning-card">
+          <div class="hw-warning-content">
+            <i class="fa-solid fa-shield-halved"></i>
+            <div>
+              <h4>Critical Engineering Safety Notice</h4>
+              <p>
+                This web dashboard functions as a software visualization and simulation prototype. In physical installations, software alerts alone must never be relied upon as the sole safeguard against water tank overflows or pump burnouts. Real deployments require hardware float switches, an independent physical overflow pipe, and thermal motor circuit breakers.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ============================================== -->
+  <!-- MODAL: SETTINGS & GEMINI API KEY -->
+  <!-- ============================================== -->
+  <div class="modal-overlay hidden" id="settingsModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <i class="fa-solid fa-key text-teal"></i>
+          <h3>Google Gemini API Configuration</h3>
+        </div>
+        <button class="modal-close-btn" id="closeSettingsModalBtn" aria-label="Close Modal">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          To enable live Google Gemini AI recommendations during your demo, enter your Gemini API key below.
+        </p>
+
+        <div class="security-alert-box">
+          <i class="fa-solid fa-shield-check"></i>
+          <div>
+            <strong>Client-Side Storage Guarantee:</strong>
+            Your key is saved exclusively in your browser's private <code>localStorage</code>. It is never logged, stored in source code, or transmitted to any third-party server.
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="geminiApiKeyInput">Gemini API Key:</label>
+          <div class="input-with-icon">
+            <i class="fa-solid fa-lock"></i>
+            <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." autocomplete="off">
+            <button type="button" class="btn-toggle-pw" id="toggleApiKeyVisibility" title="Show/Hide Key">
+              <i class="fa-regular fa-eye" id="eyeIcon"></i>
+            </button>
+          </div>
+          <small class="help-text">Leave blank to use the built-in Offline Expert Rule Engine.</small>
+        </div>
+
+        <div class="key-status-indicator" id="keyStatusDisplay">
+          <span class="status-dot"></span>
+          <span id="keyStatusText">No API key saved (Offline mode active)</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnClearApiKey">
+          <i class="fa-solid fa-trash"></i> Remove Key
+        </button>
+        <button class="btn btn-primary" id="btnSaveApiKey">
+          <i class="fa-solid fa-floppy-disk"></i> Save Configuration
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Application Logic Scripts -->
+  <script src="ai.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
